@@ -157,10 +157,15 @@ async function lidoStake(args) {
   }
   
   try {
+    // Fetch current gas prices from provider
+    const feeData = await ethProvider.getFeeData();
+    const maxFeePerGas = feeData.maxFeePerGas || ethers.parseUnits('50', 'gwei');
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || ethers.parseUnits('2', 'gwei');
+    
     const tx = await lidoStETH.submit(ethers.ZeroAddress, { 
       value: ethAmount,
-      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
-      maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
+      maxFeePerGas: maxFeePerGas * 120n / 100n, // Add 20% buffer
+      maxPriorityFeePerGas: maxPriorityFeePerGas * 120n / 100n
     });
     
     const receipt = await tx.wait();
