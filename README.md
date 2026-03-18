@@ -8,6 +8,23 @@ A Model Context Protocol (MCP) server that makes Lido staking natively callable 
 
 ---
 
+## 🔐 Security Warning
+
+**NEVER commit real private keys to this repository.**
+
+- The `.env.example` file contains placeholder values only
+- Copy `.env.example` to `.env` and add your real keys there
+- `.env` is in `.gitignore` and will never be committed
+- For production, use environment variables or a secrets manager
+- The server reads from `~/.openclaw/.env` automatically if available
+
+**If you accidentally commit a private key:**
+1. Immediately rotate the key (transfer funds to a new wallet)
+2. Remove the key from git history
+3. Never reuse that key
+
+---
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -22,7 +39,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your private key
+# Edit .env and add your private key (NEVER commit this file!)
 
 # Start the server
 npm start
@@ -120,6 +137,8 @@ lido-mcp/
 ├── index.js           # MCP server implementation
 ├── package.json       # Dependencies
 ├── lido.skill.md      # AI agent mental model for Lido
+├── .env.example       # Example environment file (NO REAL KEYS!)
+├── .gitignore         # Ensures .env is never committed
 └── README.md          # This file
 ```
 
@@ -146,10 +165,11 @@ Override by setting `ETH_RPC` and `BASE_RPC` environment variables.
 
 ## 🔐 Security
 
-- Private keys never logged or exposed
-- All write operations require explicit confirmation (use `dry_run`)
-- Gas limits set conservatively
-- Contract addresses hardcoded (no injection attacks)
+- **Private keys never logged or exposed** in code or logs
+- **All write operations require explicit confirmation** (use `dry_run`)
+- **Gas limits set conservatively**
+- **Contract addresses hardcoded** (no injection attacks)
+- **`.env` is gitignored** — never commit real keys
 
 ---
 
@@ -194,7 +214,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const transport = new StdioClientTransport({
   command: 'node',
-  args: ['lido-mcp/index.js']
+  args': ['lido-mcp/index.js']
 });
 
 const client = new Client({ name: 'my-agent', version: '1.0.0' });
