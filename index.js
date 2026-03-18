@@ -4,7 +4,7 @@
  * Lido MCP Server
  * Model Context Protocol server for AI-native ETH staking via Lido
  * 
- * Exposes: stake, unstake, wrap/unwrap, balance, rewards, governance
+ * Exposes: stake, unstake, wrap/unwrap, balance, rewards
  * Supports: Ethereum mainnet and Base L2
  * 
  * @author AOX (Agent Opportunity Exchange)
@@ -41,7 +41,6 @@ const CONFIG = {
   
   // Lido contracts
   LIDO_WITHDRAWAL_QUEUE: '0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1',
-  LIDO_ORACLE: '0x442af784A788A5bd6F42A01E9fC251dC3D7d3E3c',
   
   // Server config
   PORT: 3300,
@@ -104,6 +103,40 @@ const ERC20_ABI = [
   'function symbol() external view returns (string)',
 ];
 
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+
+const rateLimits = new Map(); // tool -> { count, resetTime }
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 10; // 10 calls per minute
+
+function checkRateLimit(toolName) {
+  const now = Date.now();
+  const toolLimit = rateLimits.get(toolName);
+  
+  if (!toolLimit || now > toolLimit.resetTime) {
+    // Reset or initialize
+    rateLimits.set(toolName, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW
+    });
+    return { allowed: true };
+  }
+  
+  if (toolLimit.count >= RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((toolLimit.resetTime - now) / 1000);
+    return { 
+      allowed: false, 
+      error: `Rate limit exceeded for ${toolName}. Maximum ${RATE_LIMIT_MAX} calls per minute. Retry after ${retryAfter}s.` 
+    };
+  }
+  
+  toolLimit.count++;
+  return { allowed: true };
+}
+
 // ============================================================================
 // PROVIDER SETUP
 // ============================================================================
@@ -131,8 +164,20 @@ const stETHBase = new ethers.Contract(CONFIG.STETH_BASE, ERC20_ABI, baseWallet |
 async function lidoStake(args) {
   const { amount, dry_run = false } = args;
   
+  // Input validation
   if (!amount || isNaN(parseFloat(amount))) {
     return { error: 'Invalid amount provided' };
+  }
+  
+  const amountNum = parseFloat(amount);
+  if (amountNum <= 0) {
+    return { error: 'Amount must be greater than 0' };
+  }
+  if (amountNum < 0.001) {
+    return { error: 'Minimum stake amount is 0.001 ETH' };
+  }
+  if (amountNum > 10) {
+    return { error: 'Maximum stake amount is 10 ETH per transaction' };
   }
   
   const ethAmount = ethers.parseEther(amount.toString());
@@ -229,7 +274,7 @@ async function lidoUnstake(args) {
     const receipt = await tx.wait();
     
     // Parse request ID from event
-    const requestId = receipt.logs[0]?.topics[1] || 'pending';
+    const requestId = receipt.logs.find(log => log.address.toLowerCase() === CONFIG.LIDO_WITHDRAWAL_QUEUE.toLowerCase())?.topics[1] || 'pending';
     
     return {
       success: true,
@@ -428,43 +473,7 @@ async function lidoRewards(args) {
   }
 }
 
-async function lidoGovernanceVote(args) {
-  const { proposal_id, vote, dry_run = false } = args;
-  
-  if (!proposal_id || !vote) {
-    return { error: 'proposal_id and vote (yes/no/abstain) required' };
-  }
-  
-  const voteChoice = vote.toLowerCase();
-  if (!['yes', 'no', 'abstain'].includes(voteChoice)) {
-    return { error: 'vote must be yes, no, or abstain' };
-  }
-  
-  if (dry_run) {
-    return {
-      success: true,
-      dry_run: true,
-      operation: 'governance_vote',
-      proposal_id,
-      vote: voteChoice,
-      note: 'Lido governance votes happen via Snapshot or Aragon (depending on proposal type)',
-      warning: 'This tool requires additional implementation for actual voting'
-    };
-  }
-  
-  // Note: Actual implementation would require:
-  // - Snapshot integration for off-chain votes
-  // - Aragon/DSProxy for on-chain votes
-  // - stETH balance check for voting power
-  
-  return {
-    success: false,
-    error: 'Governance voting requires Snapshot API integration. Use dry_run to simulate.',
-    proposal_id,
-    requested_vote: voteChoice,
-    note: 'Full implementation requires Snapshot subgraph + voting power validation'
-  };
-}
+
 
 // ============================================================================
 // MCP SERVER SETUP
@@ -592,30 +601,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
-      {
-        name: 'lido_governance_vote',
-        description: 'Cast a vote on an active Lido governance proposal. Requires voting power (stETH balance).',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            proposal_id: {
-              type: 'string',
-              description: 'ID of the proposal to vote on',
-            },
-            vote: {
-              type: 'string',
-              enum: ['yes', 'no', 'abstain'],
-              description: 'Vote choice',
-            },
-            dry_run: {
-              type: 'boolean',
-              description: 'If true, simulates without executing',
-              default: false,
-            },
-          },
-          required: ['proposal_id', 'vote'],
-        },
-      },
+
     ],
   };
 });
@@ -626,6 +612,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   
   let result;
   
+  // Check rate limit before processing
+  const rateCheck = checkRateLimit(name);
+  if (!rateCheck.allowed) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: rateCheck.error }, null, 2) }],
+    };
+  }
+
   switch (name) {
     case 'lido_stake':
       result = await lidoStake(args);
@@ -645,9 +639,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'lido_rewards':
       result = await lidoRewards(args);
       break;
-    case 'lido_governance_vote':
-      result = await lidoGovernanceVote(args);
-      break;
+
     default:
       result = { error: `Unknown tool: ${name}` };
   }

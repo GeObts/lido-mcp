@@ -23,7 +23,6 @@ A Model Context Protocol (MCP) server that makes Lido staking natively callable 
 | `lido_unwrap` | Convert wstETH → stETH | Base |
 | `lido_balance` | Check balances + APY across chains | Multi-chain |
 | `lido_rewards` | Calculate rewards + projections | Multi-chain |
-| `lido_governance_vote` | Vote on Lido DAO proposals | Ethereum Mainnet |
 
 **All write operations support `dry_run: true` for safe simulation.**
 
@@ -139,7 +138,7 @@ Fully autonomous. Zero human intervention.
 | AI-native experience | ✅ Zero custom code for users |
 | Production-ready | ✅ Full error handling, dry-run support, gas estimation |
 | Cross-chain support | ✅ Ethereum mainnet + Base L2 |
-| Complete feature set | ✅ Stake, unstake, wrap, unwrap, balance, rewards, governance |
+| Complete feature set | ✅ Stake, unstake, wrap, unwrap, balance, rewards |
 
 ---
 

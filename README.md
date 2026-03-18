@@ -77,7 +77,6 @@ Restart Claude. The Lido tools will appear in your conversation.
 | `lido_unwrap` | Convert wstETH → stETH | Base |
 | `lido_balance` | Check stETH/wstETH balances across chains | Multi-chain |
 | `lido_rewards` | Get current APY and reward estimates | Multi-chain |
-| `lido_governance_vote` | Vote on Lido DAO proposals | Ethereum Mainnet |
 
 **All write operations support `dry_run: true` for safe simulation.**
 
