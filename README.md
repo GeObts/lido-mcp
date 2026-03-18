@@ -241,7 +241,7 @@ const result = await client.callTool('lido_stake', {
 
 **Team**: AOX (Agent Opportunity Exchange)  
 **Built by**: Goyabean  
-**Contact**: `@pupAOXbot` on Telegram
+**Contact**: [@AOXexchange](https://twitter.com/AOXexchange) on Twitter
 
 ---
 
@@ -257,6 +257,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [Lido Finance](https://lido.fi/) — Liquid staking infrastructure
 - [Ethers.js](https://ethers.org/) — Ethereum library
 - [AOX](https://aox.llc) — Autonomous agent infrastructure
+- Built by [AOX](https://aox.llc)
 
 ---
 
@@ -264,6 +265,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 Issues? Questions?
 - Open an issue on GitHub
-- Contact via Telegram: `@pupAOXbot`
+- Twitter: [@AOXexchange](https://twitter.com/AOXexchange)
+- Website: [aox.llc](https://aox.llc)
 
 **Staking should be as simple as a conversation. Now it is.**
