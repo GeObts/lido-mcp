@@ -173,7 +173,6 @@ Base:
 | "Convert back to stETH" | `lido_unwrap` | wstETH → stETH |
 | "Check my balance" | `lido_balance` | Cross-chain total |
 | "How much have I earned?" | `lido_rewards` | Current APY + projections |
-| "Vote on proposal 123" | `lido_governance_vote` | Requires voting power |
 
 **Always use `dry_run: true` first for any write operation.**
 

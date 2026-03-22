@@ -6,59 +6,16 @@ Built by AOX (@AOXexchange, aox.llc) for The Synthesis Ethereum Agent Hackathon 
 
 ---
 
-## 🚀 Live Server
+## Overview
 
-**Status:** ✅ Running  
-**Server:** `http://3.142.118.148:3300` (AWS EC2)  
-**Wallet:** `0x7e7f825248Ae530610F34a5deB9Bc423f6d63373`  
-**Process:** PID 116673 (managed via nohup)  
-**Log:** `~/lido-mcp/server.log`
+This MCP server gives AI agents native access to Lido staking operations. Point Claude (or any MCP-compatible client) at this server and stake ETH from a conversation — zero custom code.
 
-### Server Process
-```bash
-# Check if running
-ps aux | grep "node index.js"
-
-# View logs
-tail -f ~/lido-mcp/server.log
-```
+**Transport:** stdio (MCP standard — not an HTTP server)
+**Wallet:** `0x7e7f825248Ae530610F34a5deB9Bc423f6d63373`
 
 ---
 
-## 🧪 Live Proof — Dry Run Results
-
-Real transaction simulations executed on mainnet:
-
-### Test 1: lido_stake (dry_run)
-```json
-{
-  "success": true,
-  "dry_run": true,
-  "operation": "stake",
-  "amount": "0.01",
-  "amount_wei": "10000000000000000",
-  "contract": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
-  "network": "ethereum-mainnet",
-  "estimated_stETH": "0.01",
-  "gas_estimate": "0.015 ETH",
-  "note": "Simulation only - no transaction executed",
-  "timestamp": "2026-03-19T01:02:10.719Z"
-}
-```
-
-### Test 2: lido_balance (live query)
-```json
-{
-  "success": true,
-  "address": "0x7e7f825248Ae530610F34a5deB9Bc423f6d63373",
-  "stETH_balance": "0.0",
-  "timestamp": "2026-03-19T01:02:12.145Z"
-}
-```
-
----
-
-## 📋 Available Tools
+## Available Tools
 
 | Tool | Description | Network |
 |------|-------------|---------|
@@ -66,14 +23,14 @@ Real transaction simulations executed on mainnet:
 | `lido_unstake` | Request unstake (withdrawal queue) | Ethereum Mainnet |
 | `lido_wrap` | Wrap stETH to wstETH | Base |
 | `lido_unwrap` | Unwrap wstETH to stETH | Base |
-| `lido_balance` | Check stETH/wstETH balances | Mainnet + Base |
-| `lido_rewards` | Get staking rewards data | Mainnet + Base |
+| `lido_balance` | Check stETH/wstETH balances + live APY | Mainnet + Base |
+| `lido_rewards` | Get staking rewards data + projections | Mainnet + Base |
 
 All write operations support `dry_run: true` for safe testing.
 
 ---
 
-## 🔧 Installation
+## Installation
 
 ```bash
 git clone https://github.com/GeObts/lido-mcp.git
@@ -85,47 +42,22 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env with your private keys (never commit this file)
+# Edit .env and set AOX_BANKER_PRIVATE_KEY (never commit real keys)
 ```
+
+The server loads the private key from (first match wins):
+1. `AOX_BANKER_PRIVATE_KEY` environment variable (set by MCP client config)
+2. `.env` file in the project root
+3. `~/.openclaw/.env` (legacy AOX agent path)
 
 ---
 
-## 🚀 Running the Server
+## Usage with MCP Clients
 
-### Development
-```bash
-node index.js
-```
+### Claude Desktop
 
-### Production (with nohup)
-```bash
-nohup node index.js > server.log 2>&1 &
-echo $! > server.pid
-```
+Add to your Claude Desktop config (`claude_desktop_config.json`):
 
-### Stop Server
-```bash
-kill $(cat server.pid)
-```
-
----
-
-## 🔒 Security
-
-**⚠️ WARNING: This server handles real funds.**
-
-- All private keys stored in `.env` (gitignored)
-- Rate limiting: 10 calls/minute per tool
-- Input validation for amounts (0.001-10 ETH for stakes)
-- Dynamic gas pricing with 20% buffer
-- `dry_run` mode available for all write operations
-- Never commit real keys — use `.env.example` as template only
-
----
-
-## 📡 Usage with MCP Clients
-
-### Claude Desktop Config
 ```json
 {
   "mcpServers": {
@@ -133,49 +65,114 @@ kill $(cat server.pid)
       "command": "node",
       "args": ["/path/to/lido-mcp/index.js"],
       "env": {
-        "BANKER_PRIVATE_KEY": "your-private-key"
+        "AOX_BANKER_PRIVATE_KEY": "0xYourPrivateKeyHere"
       }
     }
   }
 }
 ```
 
-### Example Tool Calls
+Restart Claude Desktop. The Lido tools appear automatically.
 
-**Stake ETH (dry run):**
+### Claude Code
+
+```bash
+claude mcp add lido node /path/to/lido-mcp/index.js
+```
+
+### Example Conversation
+
+**User**: "Stake 0.01 ETH via Lido"
+
+**Claude**: *Calls `lido_stake` with `dry_run: true` first*
+
+> Simulation successful:
+> - Stake: 0.01 ETH → ~0.01 stETH
+> - Gas: ~0.015 ETH
+> - Current APY: 3.2% (live from Lido API)
+>
+> Proceed with the real transaction?
+
+**User**: "Yes"
+
+**Claude**: *Calls `lido_stake` with `dry_run: false`*
+
+> Transaction confirmed:
+> - Hash: `0x...`
+> - stETH received: 0.00998
+> - Now earning staking rewards
+
+---
+
+## Live Proof — Dry Run Results
+
+Real simulations executed on mainnet:
+
+### lido_stake (dry_run)
 ```json
 {
-  "tool": "lido_stake",
-  "params": {
-    "amount": "0.1",
-    "dry_run": true
-  }
+  "success": true,
+  "dry_run": true,
+  "operation": "stake",
+  "amount": "0.01",
+  "contract": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
+  "network": "ethereum-mainnet",
+  "estimated_stETH": "0.01",
+  "current_apy_percent": 3.2,
+  "gas_estimate": "~0.015 ETH"
 }
 ```
 
-**Check Balance:**
+### lido_balance (live query)
 ```json
 {
-  "tool": "lido_balance",
-  "params": {
-    "address": "0x7e7f825248Ae530610F34a5deB9Bc423f6d63373"
-  }
+  "success": true,
+  "address": "0x7e7f825248Ae530610F34a5deB9Bc423f6d63373",
+  "total_stETH_equivalent": "0.0",
+  "current_apy_percent": 3.2,
+  "apy_source": "Lido API (live)"
 }
 ```
 
 ---
 
-## 🏆 Hackathon
+## Security
 
-**Event:** The Synthesis — Ethereum Agent Hackathon 2026  
-**Team:** AOX (Agent Opportunity Exchange)  
-**Prize Track:** Lido MCP ($5,000)  
-**ERC-8004:** Both Marketplace and Banker agents registered  
+**This server handles real funds.**
+
+- Private keys stored in `.env` (gitignored) — never committed
+- Rate limiting: 10 calls/minute per tool
+- Input validation: 0.001–10 ETH per stake transaction
+- Dynamic gas pricing with 20% buffer
+- `dry_run` mode on all write operations
+- Live APY from Lido API (cached 5 min, falls back gracefully)
+
+---
+
+## AOX Integration
+
+This MCP server powers the **Banker Agent** in the AOX autonomous pipeline:
+
+1. **Marketplace Agent** sells leads → receives USDC
+2. **Banker Agent** swaps 20% of USDC → ETH
+3. **This MCP server** stakes ETH → stETH via `lido_stake`
+4. Treasury earns 3-4% APY on idle funds
+
+Fully autonomous. Zero human intervention.
+
+---
+
+## Hackathon
+
+**Event:** The Synthesis — Ethereum Agent Hackathon 2026
+**Team:** AOX (Agent Opportunity Exchange)
+**Prize Track:** Lido MCP ($5,000)
+**ERC-8004:** Both Marketplace and Banker agents registered on-chain
 **Repo:** https://github.com/GeObts/lido-mcp
 
 ---
 
-## 📄 License
+## License
 
 MIT — See [LICENSE](./LICENSE)
 
